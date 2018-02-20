@@ -5,11 +5,13 @@ const util = require('util');
 const assert = require('assert');
 const wrapEmitter = require('emitter-listener');
 const async_hooks = require('async_hooks');
+const semver = require('semver');
 
 const CONTEXTS_SYMBOL = 'cls@contexts';
 const ERROR_SYMBOL = Symbol('error@context');
 
 const DEBUG_CLS_HOOKED = process.env.DEBUG_CLS_HOOKED;
+const getCurrentUid = semver.gte(process.versions.node, '8.2.0') ? async_hooks.executionAsyncId : () => async_hooks.currentId;
 
 let currentUid = -1;
 
@@ -283,7 +285,7 @@ function createNamespace(name) {
 
   const hook = async_hooks.createHook({
     init(asyncId, type, triggerId, resource) {
-      currentUid = async_hooks.executionAsyncId();
+      currentUid = getCurrentUid();
 
       //CHAIN Parent's Context onto child if none exists. This is needed to pass net-events.spec
       // let initContext = namespace.active;
@@ -341,7 +343,8 @@ function createNamespace(name) {
 
     },
     before(asyncId) {
-      currentUid = async_hooks.executionAsyncId();
+      currentUid = getCurrentUid();
+
       let context;
 
       /*
@@ -376,7 +379,8 @@ function createNamespace(name) {
       }
     },
     after(asyncId) {
-      currentUid = async_hooks.executionAsyncId();
+      currentUid = getCurrentUid();
+
       let context; // = namespace._contexts.get(currentUid);
       /*
       if(currentUid === 0){
@@ -409,7 +413,8 @@ function createNamespace(name) {
       }
     },
     destroy(asyncId) {
-      currentUid = async_hooks.executionAsyncId();
+      currentUid = getCurrentUid();
+
       if (DEBUG_CLS_HOOKED) {
         const triggerId = async_hooks.triggerAsyncId();
         const indentStr = ' '.repeat(namespace._indent < 0 ? 0 : namespace._indent);
@@ -468,5 +473,3 @@ function debug2(...args) {
     return fn.constructor.name;
   }
 }*/
-
-
