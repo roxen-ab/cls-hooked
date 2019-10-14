@@ -266,6 +266,7 @@ test("event emitters bound to CLS context", function (t) {
 
     // only fails on Node < 0.10
     var server = http.createServer(function (req, res) {
+
       n.bindEmitter(req);
 
       t.doesNotThrow(function () {
@@ -274,20 +275,40 @@ test("event emitters bound to CLS context", function (t) {
 
       res.writeHead(200, {"Content-Length" : 4});
       res.end('WORD');
-    });
-    server.listen(8080);
+    })
 
-    http.get('http://localhost:8080/', function (res) {
-      t.equal(res.statusCode, 200, "request came back OK");
+    let boundPort = 8080
 
-      res.setEncoding('ascii');
-      res.on('data', function (body) {
-        t.equal(body, 'WORD', 'body should match WORD');
+    var resolvePort = () => {
+      server.listen(boundPort, 'localhost')
+    }
 
-        server.close();
-        cls.destroyNamespace('no_listener');
+    server
+      .on('error', (err) => {
+        if (err.code === 'EADDRINUSE') {
+          boundPort += 1
+          resolvePort()
+        }
+      })
+      .on('listening', () => {
+        _runTest()
+      })
+
+    resolvePort()
+
+    var _runTest = () => {
+      http.get(`http://localhost:${boundPort}/`, function (res) {
+        t.equal(res.statusCode, 200, "request came back OK");
+
+        res.setEncoding('ascii');
+        res.on('data', function (body) {
+          t.equal(body, 'WORD', 'body should match WORD');
+
+          server.close();
+          cls.destroyNamespace('no_listener');
+        });
       });
-    });
+    }
   });
 
   t.test("listener with parameters added but not bound to context", function (t) {
